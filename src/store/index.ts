@@ -90,6 +90,9 @@ export const useAuthStore = create<AuthState>()(
           }));
         }
       },
+      clearVideoStats: () => {
+  // Clear old entries (optional cleanup)
+      },
 
       updateUser: (updates: Partial<User>) => {
         const { currentUser } = get();
