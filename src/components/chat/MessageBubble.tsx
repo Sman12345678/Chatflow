@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { formatMessageTime, getInitials, getAvatarColor } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import type { Message, User } from '@/types';
+import { ExternalLink, Download } from 'lucide-react';
 
 interface MessageBubbleProps {
   message: Message;
@@ -143,6 +144,50 @@ export function MessageBubble({
             </Button>
           </div>
         );
+     case 'video': {
+  const isExpired = message.videoMetadata?.expiresAt && new Date() > new Date(message.videoMetadata.expiresAt);
+  const timeLeft = message.videoMetadata?.expiresAt 
+    ? Math.max(0, Math.floor((new Date(message.videoMetadata.expiresAt).getTime() - Date.now()) / 1000))
+    : 0;
+  
+  if (isExpired) {
+    return <span className="text-red-500 italic text-sm">Video expired</span>;
+  }
+  
+  return (
+    <div className="space-y-2 max-w-xs">
+      <div className="relative group rounded-lg overflow-hidden bg-black">
+        <img 
+          src={message.videoMetadata?.thumbnail} 
+          alt={message.videoMetadata?.title}
+          className="w-full h-auto max-h-64"
+        />
+        <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+          ⏱️ {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+        </div>
+      </div>
+      <p className="text-sm font-medium truncate">{message.videoMetadata?.title}</p>
+      <div className="flex gap-2">
+        <a
+          href={message.videoMetadata?.downloadUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 flex items-center justify-center gap-2 bg-[#128C7E] hover:bg-[#0a6d65] text-white px-3 py-1 rounded text-xs"
+        >
+          <ExternalLink className="w-3 h-3" />
+          Watch
+        </a>
+        <a
+          href={message.videoMetadata?.downloadUrl}
+          download
+          className="flex items-center justify-center gap-2 border border-gray-300 dark:border-gray-600 px-2 py-1 rounded text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+          <Download className="w-3 h-3" />
+        </a>
+      </div>
+    </div>
+  );
+     }
       default:
         return <p className="text-sm whitespace-pre-wrap">{actualContent}</p>;
     }
