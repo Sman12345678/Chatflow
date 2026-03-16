@@ -22,8 +22,17 @@ export interface Status {
   expiresAt: Date;
 }
 
-export type MessageType = 'text' | 'image' | 'file' | 'voice' | 'game' | 'system';
+export type MessageType = 'text' | 'image' | 'file' | 'voice' | 'game' | 'system'| 'video';
 export type MessageStatus = 'sent' | 'delivered' | 'read';
+
+export interface VideoMetadata {
+  platform: 'youtube' | 'facebook' | 'instagram' | 'tiktok' | 'twitter';
+  title: string;
+  thumbnail: string;
+  downloadUrl: string;
+  originalUrl: string;
+  expiresAt: Date;
+}
 
 export interface Message {
   id: string;
@@ -33,6 +42,7 @@ export interface Message {
   content: string;
   fileUrl?: string;
   fileName?: string;
+  videoMetadata?: VideoMetadata
   fileSize?: number;
   duration?: number;
   replyTo?: string;
