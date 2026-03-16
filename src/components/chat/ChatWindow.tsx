@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuthStore, useChatStore, useUIStore } from '@/store';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
+import { detectVideoUrl, createVideoMessage } from '@/lib/videoProcessor';
 import { Input } from '@/components/ui/input';
 import { 
   MoreVertical, 
@@ -109,23 +110,42 @@ export function ChatWindow({ chatId, onBack }: ChatWindowProps) {
     }
   }, [editingMessage]);
 
-  const handleSendMessage = () => {
-    if (!messageText.trim()) return;
+  const handleSendMessage = async () => {
+  if (!messageText.trim()) return;
 
-    if (editingMessage) {
-      editMessage(chatId, editingMessage.id, messageText.trim());
-      setEditingMessage(null);
-    } else {
-      const content = replyToMessage 
-        ? `[reply:${replyToMessage.id}]${messageText.trim()}` 
-        : messageText.trim();
-      sendMessage(chatId, content, 'text');
-      setReplyToMessage(null);
+  let messageType: MessageType = 'text';
+  let videoMetadata: VideoMetadata | undefined;
+
+  // Check for video URL
+  const videoMatch = detectVideoUrl(messageText.trim());
+  if (videoMatch) {
+    try {
+      videoMetadata = await createVideoMessage(videoMatch.url, videoMatch.platform, currentUser?.id || '');
+      messageType = 'video';
+    } catch (error) {
+      alert(`Error: ${error instanceof Error ? error.message : 'Failed to process video'}`);
+      return;
     }
+  }
+
+  if (editingMessage) {
+    editMessage(chatId, editingMessage.id, messageText.trim());
+    setEditingMessage(null);
+  } else {
+    const content = replyToMessage 
+      ? `[reply:${replyToMessage.id}]${messageText.trim()}` 
+      : messageText.trim();
     
-    setMessageText('');
-    setShowEmojiPicker(false);
-  };
+    const msg = sendMessage(chatId, content, messageType);
+    if (videoMetadata) {
+      msg.videoMetadata = videoMetadata;
+    }
+    setReplyToMessage(null);
+  }
+  
+  setMessageText('');
+  setShowEmojiPicker(false);
+};
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
