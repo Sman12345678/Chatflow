@@ -6,7 +6,6 @@ import { detectVideoUrl, createVideoMessage } from '@/lib/videoProcessor';
 import { Input } from '@/components/ui/input';
 import type { VideoMetadata } from '@/types';
 import type { MessageType } from '@/types';
-
 import { 
   MoreVertical, 
   Phone, 
@@ -33,7 +32,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { MessageBubble } from './MessageBubble';
 import { GameMenu } from '../games/GameMenu';
 import EmojiPicker from 'emoji-picker-react';
-// Message type is used via the store
 
 interface ChatWindowProps {
   chatId: string;
@@ -75,7 +73,6 @@ export function ChatWindow({ chatId, onBack }: ChatWindowProps) {
 
   const chatInfo = (() => {
     if (!chat) return null;
-    
     if (chat.type === 'group') {
       return {
         name: chat.name || 'Group',
@@ -100,12 +97,10 @@ export function ChatWindow({ chatId, onBack }: ChatWindowProps) {
     }
   })();
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Focus input when editing
   useEffect(() => {
     if (editingMessage) {
       setMessageText(editingMessage.content);
@@ -114,41 +109,40 @@ export function ChatWindow({ chatId, onBack }: ChatWindowProps) {
   }, [editingMessage]);
 
   const handleSendMessage = async () => {
-  if (!messageText.trim()) return;
+    if (!messageText.trim()) return;
 
-  let messageType: MessageType = 'text';
-  let videoMetadata: VideoMetadata | undefined;
+    let messageType: MessageType = 'text';
+    let videoMetadata: VideoMetadata | undefined;
 
-  // Check for video URL
-  const videoMatch = detectVideoUrl(messageText.trim());
-  if (videoMatch) {
-    try {
-      videoMetadata = await createVideoMessage(videoMatch.url, videoMatch.platform, currentUser?.id || '');
-      messageType = 'video';
-    } catch (error) {
-      alert(`Error: ${error instanceof Error ? error.message : 'Failed to process video'}`);
-      return;
+    const videoMatch = detectVideoUrl(messageText.trim());
+    if (videoMatch) {
+      try {
+        videoMetadata = await createVideoMessage(videoMatch.url, videoMatch.platform, currentUser?.id || '');
+        messageType = 'video';
+      } catch (error) {
+        alert(`Error: ${error instanceof Error ? error.message : 'Failed to process video'}`);
+        return;
+      }
     }
-  }
 
-  if (editingMessage) {
-    editMessage(chatId, editingMessage.id, messageText.trim());
-    setEditingMessage(null);
-  } else {
-    const content = replyToMessage 
-      ? `[reply:${replyToMessage.id}]${messageText.trim()}` 
-      : messageText.trim();
-    
-    const msg = sendMessage(chatId, content, messageType);
-    if (videoMetadata) {
-      msg.videoMetadata = videoMetadata;
+    if (editingMessage) {
+      editMessage(chatId, editingMessage.id, messageText.trim());
+      setEditingMessage(null);
+    } else {
+      const content = replyToMessage 
+        ? `[reply:${replyToMessage.id}]${messageText.trim()}` 
+        : messageText.trim();
+
+      const msg = await sendMessage(chatId, content, messageType);
+      if (videoMetadata) {
+        msg.videoMetadata = videoMetadata;
+      }
+      setReplyToMessage(null);
     }
-    setReplyToMessage(null);
-  }
-  
-  setMessageText('');
-  setShowEmojiPicker(false);
-};
+
+    setMessageText('');
+    setShowEmojiPicker(false);
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -165,16 +159,8 @@ export function ChatWindow({ chatId, onBack }: ChatWindowProps) {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Simulate file upload
     const isImage = file.type.startsWith('image/');
-    sendMessage(
-      chatId, 
-      isImage ? 'Image' : file.name, 
-      isImage ? 'image' : 'file',
-      { fileName: file.name, fileSize: file.size }
-    );
-    
+    sendMessage(chatId, isImage ? 'Image' : file.name, isImage ? 'image' : 'file', { fileName: file.name, fileSize: file.size });
     e.target.value = '';
   };
 
@@ -192,7 +178,6 @@ export function ChatWindow({ chatId, onBack }: ChatWindowProps) {
 
   return (
     <div className="flex flex-col h-full bg-[#f0f2f5] dark:bg-[#0b141a]">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-3">
           {onBack && (
@@ -215,7 +200,6 @@ export function ChatWindow({ chatId, onBack }: ChatWindowProps) {
             <p className="text-sm text-gray-500 dark:text-gray-400">{chatInfo.subtitle}</p>
           </div>
         </div>
-        
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" className="hidden sm:flex">
             <Phone className="w-5 h-5" />
@@ -233,9 +217,7 @@ export function ChatWindow({ chatId, onBack }: ChatWindowProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {chat.type === 'group' && (
-                <DropdownMenuItem>Group Info</DropdownMenuItem>
-              )}
+              {chat.type === 'group' && <DropdownMenuItem>Group Info</DropdownMenuItem>}
               <DropdownMenuItem onClick={() => chat.isMuted ? unmuteChat(chatId) : muteChat(chatId)}>
                 {chat.isMuted ? 'Unmute' : 'Mute'} Notifications
               </DropdownMenuItem>
@@ -244,26 +226,16 @@ export function ChatWindow({ chatId, onBack }: ChatWindowProps) {
           </DropdownMenu>
         </div>
       </div>
-
-      {/* Messages Area */}
       <ScrollArea className="flex-1 px-4 py-4">
         <div className="space-y-1">
           {messages.map((message, index) => {
-            const showDate = index === 0 || 
-              new Date(message.createdAt).toDateString() !== 
-              new Date(messages[index - 1].createdAt).toDateString();
-
+            const showDate = index === 0 || new Date(message.createdAt).toDateString() !== new Date(messages[index - 1].createdAt).toDateString();
             return (
               <div key={message.id}>
                 {showDate && (
                   <div className="flex justify-center my-4">
                     <span className="px-3 py-1 bg-[#e1f2fb] dark:bg-[#202c33] text-xs text-gray-600 dark:text-gray-400 rounded-full">
-                      {new Date(message.createdAt).toLocaleDateString('en-US', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}
+                      {new Date(message.createdAt).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                     </span>
                   </div>
                 )}
@@ -282,8 +254,6 @@ export function ChatWindow({ chatId, onBack }: ChatWindowProps) {
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
-
-      {/* Reply/Edit Banner */}
       {(replyToMessage || editingMessage) && (
         <div className="px-4 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm">
@@ -315,69 +285,26 @@ export function ChatWindow({ chatId, onBack }: ChatWindowProps) {
           </Button>
         </div>
       )}
-
-      {/* Game Menu */}
-      {showGameMenu && (
-        <GameMenu 
-          chatId={chatId} 
-          onClose={() => setShowGameMenu(false)} 
-        />
-      )}
-
-      {/* Emoji Picker */}
-      {showEmojiPicker && (
-        <div className="absolute bottom-20 right-4 z-50">
-          <EmojiPicker 
-            onEmojiClick={handleEmojiClick}
-            width={300}
-            height={400}
-          />
-        </div>
-      )}
-
-      {/* Input Area */}
+      {showGameMenu && <GameMenu chatId={chatId} onClose={() => setShowGameMenu(false)} />}
+      {showEmojiPicker && <div className="absolute bottom-20 right-4 z-50"><EmojiPicker onEmojiClick={handleEmojiClick} width={300} height={400} /></div>}
       <div className="px-4 py-3 bg-[#f0f2f5] dark:bg-[#202c33]">
         <div className="flex items-end gap-2">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className={showEmojiPicker ? 'text-[#128C7E]' : ''}
-          >
+          <Button variant="ghost" size="icon" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={showEmojiPicker ? 'text-[#128C7E]' : ''}>
             <Smile className="w-6 h-6" />
           </Button>
-          
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => fileInputRef.current?.click()}
-          >
+          <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()}>
             <Paperclip className="w-6 h-6" />
           </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="hidden"
-            onChange={handleFileSelect}
-            accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
-          />
-
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => setShowGameMenu(!showGameMenu)}
-            className={showGameMenu ? 'text-[#128C7E]' : ''}
-          >
+          <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} accept="image/*,video/*,audio/*,.pdf,.doc,.docx" />
+          <Button variant="ghost" size="icon" onClick={() => setShowGameMenu(!showGameMenu)} className={showGameMenu ? 'text-[#128C7E]' : ''}>
             <Gamepad2 className="w-6 h-6" />
           </Button>
-
           <div className="flex-1 bg-white dark:bg-[#2a3942] rounded-full px-4 py-2">
             <Input
               ref={inputRef}
               value={messageText}
               onChange={(e) => {
                 setMessageText(e.target.value);
-                // Simulate typing indicator
                 if (currentUser) {
                   setTyping(chatId, currentUser.id, true);
                   setTimeout(() => setTyping(chatId, currentUser.id, false), 2000);
@@ -388,26 +315,12 @@ export function ChatWindow({ chatId, onBack }: ChatWindowProps) {
               className="border-0 bg-transparent focus-visible:ring-0 px-0 py-0 h-auto"
             />
           </div>
-
           {messageText.trim() ? (
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={handleSendMessage}
-              className="bg-[#128C7E] hover:bg-[#075E54] text-white rounded-full"
-            >
+            <Button variant="ghost" size="icon" onClick={handleSendMessage} className="bg-[#128C7E] hover:bg-[#075E54] text-white rounded-full">
               <Send className="w-5 h-5" />
             </Button>
           ) : (
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onMouseDown={() => setIsRecording(true)}
-              onMouseUp={() => setIsRecording(false)}
-              onTouchStart={() => setIsRecording(true)}
-              onTouchEnd={() => setIsRecording(false)}
-              className={isRecording ? 'text-[#128C7E]' : ''}
-            >
+            <Button variant="ghost" size="icon" onMouseDown={() => setIsRecording(true)} onMouseUp={() => setIsRecording(false)} onTouchStart={() => setIsRecording(true)} onTouchEnd={() => setIsRecording(false)} className={isRecording ? 'text-[#128C7E]' : ''}>
               <Mic className="w-6 h-6" />
             </Button>
           )}
