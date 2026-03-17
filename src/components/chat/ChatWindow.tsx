@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { detectVideoUrl, createVideoMessage } from '@/lib/videoProcessor';
 import { Input } from '@/components/ui/input';
 import type { VideoMetadata } from '@/types';
-import type { messageType } from '@/types';
+import type { MessageType } from '@/types';
 
 import { 
   MoreVertical, 
@@ -116,7 +116,7 @@ export function ChatWindow({ chatId, onBack }: ChatWindowProps) {
   const handleSendMessage = async () => {
   if (!messageText.trim()) return;
 
-  let messageType: messageType = 'text';
+  let messageType: MessageType = 'text';
   let videoMetadata: VideoMetadata | undefined;
 
   // Check for video URL
