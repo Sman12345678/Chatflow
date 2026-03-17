@@ -133,10 +133,7 @@ export function ChatWindow({ chatId, onBack }: ChatWindowProps) {
         ? `[reply:${replyToMessage.id}]${messageText.trim()}` 
         : messageText.trim();
 
-      const msg = await sendMessage(chatId, content, messageType);
-      if (videoMetadata) {
-        msg.videoMetadata = videoMetadata;
-      }
+            await sendMessage(chatId, content, messageType, videoMetadata ? { videoMetadata } : undefined);
       setReplyToMessage(null);
     }
 
