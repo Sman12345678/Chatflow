@@ -27,14 +27,16 @@ export function NewChatDialog({ open, onClose }: NewChatDialogProps) {
     return users.filter(user => {
       if (user.id === currentUser?.id) return false;
       
-      // Check if private chat already exists
-  /*    const existingChat = chats.find(chat => 
-        chat.type === 'private' && 
-        chat.participants.includes(user.id) &&
-        chat.participants.includes(currentUser?.id || '')
-      );
-      
-   //   if (existingChat) return false;*/
+if (!currentUser) return false;
+
+const existingChat = chats.some(chat =>
+  chat.type === 'private' &&
+  Array.isArray(chat.participants) &&
+  chat.participants.includes(user.id) &&
+  chat.participants.includes(currentUser.id)
+);
+
+if (existingChat) return false;
       
       if (!searchQuery.trim()) return true;
       
