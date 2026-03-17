@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore, useChatStore } from '@/store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Search, Check, Users } from 'lucide-react';
 import { getInitials, getAvatarColor } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
+// import { useEffect } from 'react'; 
 
 interface NewGroupDialogProps {
   open: boolean;
@@ -15,12 +16,17 @@ interface NewGroupDialogProps {
 }
 
 export function NewGroupDialog({ open, onClose }: NewGroupDialogProps) {
-  const { currentUser, users } = useAuthStore();
+  const { currentUser, users, fetchUsers } = useAuthStore();
   const { createGroupChat, selectChat } = useChatStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [groupName, setGroupName] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [step, setStep] = useState<1 | 2>(1);
+  useEffect(() => {
+  if (open) {
+    fetchUsers();
+  }
+}, [open, fetchUsers]);
 
   const availableUsers = useMemo(() => {
     return users.filter(user => {
