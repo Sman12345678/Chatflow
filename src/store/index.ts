@@ -21,121 +21,165 @@ import type {
 // Auth Store
 // =============================================================================
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 interface AuthState {
   currentUser: User | null;
   isAuthenticated: boolean;
   users: User[];
-  login: (username: string, password: string) => boolean;
-  register: (username: string, password: string, displayName: string) => boolean;
-  logout: () => void;
+  isLoading: boolean;
+  error: string | null;
+  login: (username: string, password: string) => Promise<boolean>;
+  register: (username: string, password: string, displayName: string) => Promise<boolean>;
+  logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
   setUserStatus: (statusText: string) => void;
   getUserById: (userId: string) => User | undefined;
   getUserByUsername: (username: string) => User | undefined;
+  fetchUsers: () => Promise<void>;
+  clearError: () => void;
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
+export const useAuthStore = create<AuthState>()((set, get) => ({
+  currentUser: null,
+  isAuthenticated: false,
+  users: [],
+  isLoading: false,
+  error: null,
+
+  login: async (username: string, password: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_URL}/api/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        set({ error: data.error || 'Login failed', isLoading: false });
+        return false;
+      }
+
+      set({
+        currentUser: { ...data.user, isOnline: true },
+        isAuthenticated: true,
+        isLoading: false,
+      });
+      
+      get().fetchUsers();
+      return true;
+    } catch (error) {
+      set({ error: 'Network error', isLoading: false });
+      return false;
+    }
+  },
+
+  register: async (username: string, password: string, displayName: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_URL}/api/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, displayName }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        set({ error: data.error || 'Registration failed', isLoading: false });
+        return false;
+      }
+
+      set({
+        currentUser: { ...data.user, isOnline: true },
+        isAuthenticated: true,
+        isLoading: false,
+      });
+      
+      set(state => ({
+        users: [...state.users, data.user]
+      }));
+      
+      return true;
+    } catch (error) {
+      set({ error: 'Network error', isLoading: false });
+      return false;
+    }
+  },
+
+  logout: async () => {
+    const { currentUser } = get();
+    if (currentUser) {
+      try {
+        await fetch(`${API_URL}/api/logout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser.id }),
+        });
+      } catch (e) {
+        console.error('Logout error:', e);
+      }
+    }
+    
+    set({
       currentUser: null,
       isAuthenticated: false,
       users: [],
+    });
+  },
 
-      login: (username: string, password: string) => {
-        const user = get().users.find(u => u.username === username && u.password === password);
-        if (user) {
-          set({ 
-            currentUser: { ...user, isOnline: true }, 
-            isAuthenticated: true 
-          });
-          return true;
-        }
-        return false;
-      },
-
-      register: (username: string, password: string, displayName: string) => {
-        const existingUser = get().users.find(u => u.username === username);
-        if (existingUser) return false;
-
-        const newUser: User = {
-          id: crypto.randomUUID(),
-          username,
-          password,
-          displayName: displayName || username,
-          bio: '',
-          isOnline: true,
-          lastSeen: new Date(),
-          createdAt: new Date(),
-        };
-
-        set(state => ({
-          users: [...state.users, newUser],
-          currentUser: newUser,
-          isAuthenticated: true,
-        }));
-        return true;
-      },
-
-      logout: () => {
-        const { currentUser } = get();
-        if (currentUser) {
-          set(state => ({
-            currentUser: null,
-            isAuthenticated: false,
-            users: state.users.map(u => 
-              u.id === currentUser.id 
-                ? { ...u, isOnline: false, lastSeen: new Date() } 
-                : u
-            ),
-          }));
-        }
-      },
-      clearVideoStats: () => {
-  // Clear old entries (optional cleanup)
-      },
-
-      updateUser: (updates: Partial<User>) => {
-        const { currentUser } = get();
-        if (!currentUser) return;
-
-        const updatedUser = { ...currentUser, ...updates };
-        set(state => ({
-          currentUser: updatedUser,
-          users: state.users.map(u => 
-            u.id === currentUser.id ? updatedUser : u
-          ),
-        }));
-      },
-
-      setUserStatus: (statusText: string) => {
-        const { currentUser } = get();
-        if (!currentUser) return;
-
-        const newStatus: Status = {
-          id: crypto.randomUUID(),
-          userId: currentUser.id,
-          text: statusText,
-          createdAt: new Date(),
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        };
-
-        set(state => ({
-          currentUser: { ...currentUser, status: newStatus },
-          users: state.users.map(u => 
-            u.id === currentUser.id ? { ...u, status: newStatus } : u
-          ),
-        }));
-      },
-
-      getUserById: (userId: string) => get().users.find(u => u.id === userId),
-      getUserByUsername: (username: string) => get().users.find(u => u.username === username),
-    }),
-    {
-      name: 'chatflow-auth',
-      storage: createJSONStorage(() => localStorage),
+  fetchUsers: async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/users`);
+      if (response.ok) {
+        const users = await response.json();
+        set({ users });
+      }
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
     }
-  )
-);
+  },
+
+  updateUser: (updates: Partial<User>) => {
+    const { currentUser } = get();
+    if (!currentUser) return;
+
+    const updatedUser = { ...currentUser, ...updates };
+    set(state => ({
+      currentUser: updatedUser,
+      users: state.users.map(u => 
+        u.id === currentUser.id ? updatedUser : u
+      ),
+    }));
+  },
+
+  setUserStatus: (statusText: string) => {
+    const { currentUser } = get();
+    if (!currentUser) return;
+
+    const newStatus: Status = {
+      id: crypto.randomUUID(),
+      userId: currentUser.id,
+      text: statusText,
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    };
+
+    set(state => ({
+      currentUser: { ...currentUser, status: newStatus },
+      users: state.users.map(u => 
+        u.id === currentUser.id ? { ...u, status: newStatus } : u
+      ),
+    }));
+  },
+
+  getUserById: (userId: string) => get().users.find(u => u.id === userId),
+  getUserByUsername: (username: string) => get().users.find(u => u.username === username),
+  clearError: () => set({ error: null }),
+}));
 
 // =============================================================================
 // Chat Store
