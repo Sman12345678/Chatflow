@@ -39,7 +39,7 @@ export function NewChatDialog({ open, onClose }: NewChatDialogProps) {
     });
   }, [users, currentUser, chats, searchQuery]);
 
-  const handleStartChat = (userId: string) => {
+  const handleStartChat = async (userId: string) => {
     if (!currentUser) return;
     
     const chat = await createPrivateChat(currentUser.id, userId);
