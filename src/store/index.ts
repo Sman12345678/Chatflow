@@ -115,10 +115,7 @@ export const useAuthStore = create<AuthState>()(
             isOnline: true,
           });
           
-          // Fetch other users for chat
           get().fetchUsers();
-          
-          // Trigger chat fetch
           useChatStore.getState().fetchChats(data.user.id);
           
           return true;
@@ -179,7 +176,6 @@ export const useAuthStore = create<AuthState>()(
           }
         }
         
-        // Clear all stores
         useChatStore.getState().clearLocalData();
         useStatusStore.getState().clearLocalData();
         useGameStore.getState().clearLocalData();
@@ -212,12 +208,10 @@ export const useAuthStore = create<AuthState>()(
         const { currentUser } = get();
         if (!currentUser) return;
 
-        // Optimistic update
         const updatedUser = { ...currentUser, ...updates };
         set({ currentUser: updatedUser });
 
         if (!network.isOnline()) {
-          // Queue for later sync
           queueAction('updateUser', { userId: currentUser.id, updates });
           return;
         }
@@ -388,12 +382,10 @@ async function processMakeMove(payload: any): Promise<boolean> {
   }
 }
 
-// Process queue when coming back online
 window.addEventListener('online', () => {
   setTimeout(processQueue, 1000);
 });
 
-// Load queue on startup
 loadQueue();
 
 // =============================================================================
@@ -408,7 +400,7 @@ interface ChatState {
   searchQuery: string;
   isLoading: boolean;
   isOnline: boolean;
-  pendingMessages: Record<string, Message[]>; // Queued when offline
+  pendingMessages: Record<string, Message[]>;
   
   createPrivateChat: (userId: string, otherUserId: string) => Promise<Chat>;
   createGroupChat: (name: string, participantIds: string[], adminId: string) => Promise<Chat>;
@@ -460,7 +452,7 @@ export const useChatStore = create<ChatState>()(
       fetchChats: async (userId: string) => {
         if (!network.isOnline()) {
           set({ isOnline: false });
-          return; // Use cached data from persistence
+          return;
         }
 
         set({ isLoading: true });
@@ -477,12 +469,9 @@ export const useChatStore = create<ChatState>()(
       },
 
       fetchMessages: async (chatId: string) => {
-        // Check cache first
-        const cached = get().messages[chatId];
-        
         if (!network.isOnline()) {
           set({ isOnline: false });
-          return; // Use cached messages
+          return;
         }
 
         try {
@@ -539,8 +528,8 @@ export const useChatStore = create<ChatState>()(
           }
         } catch (error) {
           console.error('Failed to create chat:', error);
-          throw error;
         }
+        throw new Error('Failed to create chat');
       },
 
       createGroupChat: async (name: string, participantIds: string[], adminId: string) => {
@@ -578,8 +567,8 @@ export const useChatStore = create<ChatState>()(
           }
         } catch (error) {
           console.error('Failed to create group:', error);
-          throw error;
         }
+        throw new Error('Failed to create group');
       },
 
       selectChat: (chatId: string | null) => {
@@ -603,13 +592,12 @@ export const useChatStore = create<ChatState>()(
           content,
           ...fileData,
           reactions: [],
-          status: 'sending',
+          status: 'sent',
           isEdited: false,
           isDeleted: false,
           createdAt: new Date(),
         };
 
-        // Optimistic update
         set(state => ({
           messages: {
             ...state.messages,
@@ -618,17 +606,10 @@ export const useChatStore = create<ChatState>()(
         }));
 
         if (!network.isOnline()) {
-          // Queue for later
           set(state => ({
             pendingMessages: {
               ...state.pendingMessages,
               [chatId]: [...(state.pendingMessages[chatId] || []), newMessage],
-            },
-            messages: {
-              ...state.messages,
-              [chatId]: state.messages[chatId].map(m => 
-                m.id === tempId ? { ...m, status: 'pending' } : m
-              ),
             },
           }));
           
@@ -681,17 +662,8 @@ export const useChatStore = create<ChatState>()(
           }
         } catch (error) {
           console.error('Failed to send message:', error);
-          set(state => ({
-            messages: {
-              ...state.messages,
-              [chatId]: state.messages[chatId].map(m => 
-                m.id === tempId ? { ...m, status: 'failed' } : m
-              ),
-            },
-            isOnline: false,
-          }));
+          set({ isOnline: false });
           
-          // Queue for retry
           queueAction('sendMessage', {
             chatId,
             messageData: {
@@ -711,44 +683,41 @@ export const useChatStore = create<ChatState>()(
 
         for (const [chatId, messages] of Object.entries(pendingMessages)) {
           for (const msg of messages) {
-            if (msg.status === 'pending') {
-              try {
-                const response = await fetch(`${API_URL}/api/chats/${chatId}/messages`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    senderId: msg.senderId,
-                    type: msg.type,
-                    content: msg.content,
-                    fileData: (msg as any).fileData,
-                  }),
-                });
+            try {
+              const response = await fetch(`${API_URL}/api/chats/${chatId}/messages`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  senderId: msg.senderId,
+                  type: msg.type,
+                  content: msg.content,
+                  fileData: (msg as any).fileData,
+                }),
+              });
 
-                if (response.ok) {
-                  const data = await response.json();
-                  set(state => ({
-                    messages: {
-                      ...state.messages,
-                      [chatId]: state.messages[chatId].map(m => 
-                        m.id === msg.id ? { ...m, id: data.id, status: 'sent' } : m
-                      ),
-                    },
-                    pendingMessages: {
-                      ...state.pendingMessages,
-                      [chatId]: state.pendingMessages[chatId].filter(m => m.id !== msg.id),
-                    },
-                  }));
-                }
-              } catch (error) {
-                console.error('Failed to sync message:', error);
+              if (response.ok) {
+                const data = await response.json();
+                set(state => ({
+                  messages: {
+                    ...state.messages,
+                    [chatId]: state.messages[chatId].map(m => 
+                      m.id === msg.id ? { ...m, id: data.id, status: 'sent' } : m
+                    ),
+                  },
+                  pendingMessages: {
+                    ...state.pendingMessages,
+                    [chatId]: state.pendingMessages[chatId].filter(m => m.id !== msg.id),
+                  },
+                }));
               }
+            } catch (error) {
+              console.error('Failed to sync message:', error);
             }
           }
         }
       },
 
       deleteMessage: async (chatId: string, messageId: string, forEveryone = false) => {
-        // Optimistic
         if (forEveryone) {
           set(state => ({
             messages: {
@@ -783,7 +752,6 @@ export const useChatStore = create<ChatState>()(
       },
 
       editMessage: async (chatId: string, messageId: string, newContent: string) => {
-        // Optimistic
         set(state => ({
           messages: {
             ...state.messages,
@@ -915,7 +883,7 @@ export const useChatStore = create<ChatState>()(
         }));
       },
 
-      archiveChat: (chatId: string) => {
+      archiveChat: (_chatId: string) => {
         // TODO: Implement
       },
 
@@ -996,7 +964,6 @@ export const useChatStore = create<ChatState>()(
   )
 );
 
-// Sync pending messages when back online
 window.addEventListener('online', () => {
   setTimeout(() => {
     useChatStore.getState().syncPendingMessages();
@@ -1055,7 +1022,6 @@ export const useStatusStore = create<StatusState>()(
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         };
 
-        // Optimistic
         set(state => ({
           statuses: [...state.statuses.filter(s => s.userId !== userId), newStatus],
         }));
@@ -1123,6 +1089,7 @@ interface AIState {
   isLoading: boolean;
   isOnline: boolean;
   sendMessage: (content: string) => Promise<void>;
+  getOrCreateConversation: (userId: string) => AIConversation;
   fetchConversation: (userId: string) => Promise<void>;
   clearConversation: (userId: string) => Promise<void>;
   clearLocalData: () => void;
@@ -1138,10 +1105,28 @@ export const useAIStore = create<AIState>()(
 
       clearLocalData: () => set({ conversations: [], currentConversationId: null }),
 
+      getOrCreateConversation: (userId: string) => {
+        let conversation = get().conversations.find(c => c.userId === userId);
+        if (!conversation) {
+          conversation = {
+            id: crypto.randomUUID(),
+            userId,
+            messages: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+          set(state => ({
+            conversations: [...state.conversations, conversation!],
+            currentConversationId: conversation!.id,
+          }));
+        }
+        return conversation;
+      },
+
       fetchConversation: async (userId: string) => {
         if (!network.isOnline()) {
           set({ isOnline: false });
-          return; // Use cached
+          return;
         }
 
         try {
@@ -1167,15 +1152,8 @@ export const useAIStore = create<AIState>()(
         const { currentUser } = useAuthStore.getState();
         if (!currentUser) return;
 
-        // Ensure conversation loaded
-        const existing = get().conversations.find(c => c.userId === currentUser.id);
-        if (!existing) {
-          await get().fetchConversation(currentUser.id);
-        }
+        const conversation = get().getOrCreateConversation(currentUser.id);
         
-        const conversation = get().conversations.find(c => c.userId === currentUser.id);
-        if (!conversation) return;
-
         const userMessage: AIMessage = {
           id: crypto.randomUUID(),
           role: 'user',
@@ -1185,7 +1163,6 @@ export const useAIStore = create<AIState>()(
 
         const updatedMessages = [...conversation.messages, userMessage];
         
-        // Optimistic
         set(state => ({
           conversations: state.conversations.map(c => 
             c.id === conversation.id 
@@ -1195,7 +1172,6 @@ export const useAIStore = create<AIState>()(
           isLoading: true,
         }));
 
-        // Get AI response (works offline with fallback)
         const aiContent = await callKimiAPI(updatedMessages);
         
         const aiResponse: AIMessage = {
@@ -1207,7 +1183,6 @@ export const useAIStore = create<AIState>()(
 
         const finalMessages = [...updatedMessages, aiResponse];
         
-        // Update local
         set(state => ({
           conversations: state.conversations.map(c => 
             c.id === conversation.id 
@@ -1217,7 +1192,6 @@ export const useAIStore = create<AIState>()(
           isLoading: false,
         }));
 
-        // Sync to API if online
         if (network.isOnline()) {
           try {
             await fetch(`${API_URL}/api/ai-conversations/${currentUser.id}`, {
@@ -1413,10 +1387,7 @@ export const useGameStore = create<GameState>()(
           activeGames: { ...state.activeGames, [chatId]: gameData },
         }));
 
-        if (!network.isOnline()) {
-          // Store locally, sync later
-          return;
-        }
+        if (!network.isOnline()) return;
 
         try {
           await fetch(`${API_URL}/api/games`, {
@@ -1442,7 +1413,6 @@ export const useGameStore = create<GameState>()(
 
         const newGameState = { ...game.gameState, ...move };
         
-        // Optimistic
         set(state => ({
           activeGames: {
             ...state.activeGames,
