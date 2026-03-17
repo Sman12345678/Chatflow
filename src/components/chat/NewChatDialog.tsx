@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search, UserPlus } from 'lucide-react';
 import { getInitials, getAvatarColor } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useEffect } from 'react'; 
 
 interface NewChatDialogProps {
   open: boolean;
@@ -13,9 +14,14 @@ interface NewChatDialogProps {
 }
 
 export function NewChatDialog({ open, onClose }: NewChatDialogProps) {
-  const { currentUser, users } = useAuthStore();
+  const { currentUser, users, fetchUsers } = useAuthStore();
   const { createPrivateChat, selectChat, chats } = useChatStore();
   const [searchQuery, setSearchQuery] = useState('');
+  useEffect(() => {
+  if (open) {
+    fetchUsers();
+  }
+}, [open, fetchUsers]);
 
   const availableUsers = useMemo(() => {
     return users.filter(user => {
