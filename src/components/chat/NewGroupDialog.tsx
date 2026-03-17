@@ -43,7 +43,7 @@ export function NewGroupDialog({ open, onClose }: NewGroupDialogProps) {
     );
   };
 
-  const handleCreateGroup = () => {
+  const handleCreateGroup = async () => {
     if (!currentUser || !groupName.trim() || selectedUsers.length === 0) return;
     
     const chat = await createGroupChat(
