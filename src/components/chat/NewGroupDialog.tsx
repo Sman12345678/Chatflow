@@ -22,11 +22,13 @@ export function NewGroupDialog({ open, onClose }: NewGroupDialogProps) {
   const [groupName, setGroupName] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [step, setStep] = useState<1 | 2>(1);
+  
+  /*.           .*/
   useEffect(() => {
   if (open) {
     fetchUsers();
   }
-}, [open, fetchUsers]);
+}, [open]);
 
   const availableUsers = useMemo(() => {
     return users.filter(user => {
@@ -50,16 +52,23 @@ export function NewGroupDialog({ open, onClose }: NewGroupDialogProps) {
   };
 
   const handleCreateGroup = async () => {
-    if (!currentUser || !groupName.trim() || selectedUsers.length === 0) return;
-    
+  if (!currentUser || !groupName.trim() || selectedUsers.length === 0) return;
+  
+  try {
     const chat = await createGroupChat(
       groupName.trim(),
       [currentUser.id, ...selectedUsers],
       currentUser.id
     );
-    selectChat(chat.id);
-    handleClose();
-  };
+    if (chat && chat.id) {
+      selectChat(chat.id);
+      handleClose();
+    }
+  } catch (error) {
+    console.error('Failed to create group:', error);
+    alert('Failed to create group. Please try again.');
+  }
+};
 
   const handleClose = () => {
     onClose();
