@@ -28,13 +28,13 @@ export function NewChatDialog({ open, onClose }: NewChatDialogProps) {
       if (user.id === currentUser?.id) return false;
       
       // Check if private chat already exists
-      const existingChat = chats.find(chat => 
+  /*    const existingChat = chats.find(chat => 
         chat.type === 'private' && 
         chat.participants.includes(user.id) &&
         chat.participants.includes(currentUser?.id || '')
       );
       
-   //   if (existingChat) return false;
+   //   if (existingChat) return false;*/
       
       if (!searchQuery.trim()) return true;
       
