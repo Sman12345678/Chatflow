@@ -4,6 +4,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { detectVideoUrl, createVideoMessage } from '@/lib/videoProcessor';
 import { Input } from '@/components/ui/input';
+import type { VideoMetadata } from '@/types';
+import type { messageType } from '@/types';
+
 import { 
   MoreVertical, 
   Phone, 
