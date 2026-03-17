@@ -116,7 +116,7 @@ export function ChatWindow({ chatId, onBack }: ChatWindowProps) {
   const handleSendMessage = async () => {
   if (!messageText.trim()) return;
 
-  let messageType: MessageType = 'text';
+  let messageType: messageType = 'text';
   let videoMetadata: VideoMetadata | undefined;
 
   // Check for video URL
