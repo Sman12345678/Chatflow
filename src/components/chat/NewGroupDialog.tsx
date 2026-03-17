@@ -46,7 +46,7 @@ export function NewGroupDialog({ open, onClose }: NewGroupDialogProps) {
   const handleCreateGroup = () => {
     if (!currentUser || !groupName.trim() || selectedUsers.length === 0) return;
     
-    const chat = createGroupChat(
+    const chat = await createGroupChat(
       groupName.trim(),
       [currentUser.id, ...selectedUsers],
       currentUser.id
