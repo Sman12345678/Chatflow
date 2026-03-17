@@ -34,7 +34,7 @@ export function NewChatDialog({ open, onClose }: NewChatDialogProps) {
         chat.participants.includes(currentUser?.id || '')
       );
       
-      if (existingChat) return false;
+   //   if (existingChat) return false;
       
       if (!searchQuery.trim()) return true;
       
