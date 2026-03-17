@@ -17,11 +17,13 @@ export function NewChatDialog({ open, onClose }: NewChatDialogProps) {
   const { currentUser, users, fetchUsers } = useAuthStore();
   const { createPrivateChat, selectChat, chats } = useChatStore();
   const [searchQuery, setSearchQuery] = useState('');
+
+  // 🤦
   useEffect(() => {
   if (open) {
     fetchUsers();
   }
-}, [open, fetchUsers]);
+}, [open]);
 
   const availableUsers = useMemo(() => {
     return users.filter(user => {
@@ -48,13 +50,20 @@ if (existingChat) return false;
   }, [users, currentUser, chats, searchQuery]);
 
   const handleStartChat = async (userId: string) => {
-    if (!currentUser) return;
-    
+  if (!currentUser) return;
+  
+  try {
     const chat = await createPrivateChat(currentUser.id, userId);
-    selectChat(chat.id);
-    onClose();
-    setSearchQuery('');
-  };
+    if (chat && chat.id) {
+      selectChat(chat.id);
+      onClose();
+      setSearchQuery('');
+    }
+  } catch (error) {
+    console.error('Failed to create chat:', error);
+    alert('Failed to create chat. Please try again.');
+  }
+};
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
