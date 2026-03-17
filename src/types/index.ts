@@ -42,7 +42,7 @@ export interface Message {
   content: string;
   fileUrl?: string;
   fileName?: string;
-  videoMetadata?: VideoMetadata
+  videoMetadata?: VideoMetadata;
   fileSize?: number;
   duration?: number;
   replyTo?: string;
